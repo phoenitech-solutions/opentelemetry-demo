@@ -1,0 +1,84 @@
+name: Build and Push Checkout Container
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/checkout/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'src/checkout/**'
+
+env:
+  REGISTRY: docker.io
+  IMAGE_NAME: tomondree/otel-demo-checkout
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get commit message
+        id: commit
+        run: |
+          echo "message<<EOF" >> $GITHUB_OUTPUT
+          git log -1 --pretty=%B >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest
+            type=raw,value=${{ github.sha }}
+            type=raw,value=correct
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./src/checkout/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+    #   - name: Install kubectl
+    #     uses: azure/setup-kubectl@v3
+    #     with:
+    #       version: 'latest'
+
+    #   - name: Configure kubectl
+    #     run: |
+    #       echo "${{ secrets.KUBE_CONFIG }}" > kubeconfig.yaml
+    #       export KUBECONFIG=kubeconfig.yaml
+
+    #   - name: Update Image in Deployment
+    #     run: |
+    #       kubectl set image deployment/checkout checkout=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} -n opentelemetry-demo
+    #       kubectl annotate deployment/checkout kubernetes.io/change-cause="${{ steps.commit.outputs.message }}" -n opentelemetry-demo
+
+    #   - name: Verify Rollout Status
+    #     run: |
+    #       kubectl rollout status deployment/checkout -n opentelemetry-demo 
