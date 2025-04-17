@@ -22,3 +22,22 @@ These containers are used in our simulation scenario:
 The containers are available at:
 - `tomondree/otel-demo-checkout:correct`
 - `tomondree/otel-demo-checkout:incorrect`
+
+## Deployment Commands
+
+To deploy the containers in Kubernetes, use the following commands:
+
+1. Deploy the correct version (without revision message):
+```bash
+kubectl set image deployment/checkout checkout=tomondree/otel-demo-checkout:correct -n customer-environment
+```
+
+2. Deploy the incorrect version (with DNS update message):
+```bash
+kubectl set image deployment/checkout checkout=tomondree/otel-demo-checkout:incorrect -n customer-environment && kubectl annotate deployment/checkout kubernetes.io/change-cause="Checkout DNS has been updated" -n customer-environment
+```
+
+To verify the deployment history and revision messages:
+```bash
+kubectl rollout history deployment/checkout -n customer-environment
+```
