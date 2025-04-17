@@ -30,8 +30,13 @@ jobs:
       - name: Get commit message
         id: commit
         run: |
+          # Get the commit message and clean it for use as a tag
+          COMMIT_MSG=$(git log -1 --pretty=%B | tr -dc '[:alnum:]-_' | tr '[:upper:]' '[:lower:]' | cut -c1-50)
           echo "message<<EOF" >> $GITHUB_OUTPUT
-          git log -1 --pretty=%B >> $GITHUB_OUTPUT
+          echo "$COMMIT_MSG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          echo "tag<<EOF" >> $GITHUB_OUTPUT
+          echo "$COMMIT_MSG" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Set up Docker Buildx
@@ -51,7 +56,7 @@ jobs:
           tags: |
             type=raw,value=latest
             type=raw,value=${{ github.sha }}
-            type=raw,value=correct
+            type=raw,value=${{ steps.commit.outputs.tag }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
